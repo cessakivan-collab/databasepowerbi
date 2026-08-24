@@ -1,37 +1,63 @@
-# 1. **Extracción y Promoción de Encabezados:** Se cargó el archivo en Power BI Desktop y se utilizó la primera fila como encabezado de columnas.
-2. **Estandarización de Nombres:** Se reemplazaron los códigos técnicos del sistema por nombres claros en español usando formato `snake_case` (por ejemplo: de `COD_CLI_001` a `id_cliente`, de `FEC_VTA` a `fecha_venta`).
-3. **Corrección de Tipos de Datos:** Se asignó el tipo de dato correspondiente a cada columna antes de realizar cualquier cálculo o separación.
-4. **Depuración de Duplicados:** Se eliminaron las transacciones repetidas generadas por errores en la exportación original.
-5. **Tratamiento de Valores Nulos:** Se filtraron registros transaccionales sin importe y se imputaron valores por defecto en datos cualitativos.
-6. **Normalización (Bifurcación en 2 Tablas):** Se crearon dos tablas independientes (`dim_clientes` y `fact_ventas`) mediante referencias en Power Query para adoptar un modelo en estrella.
+---
+
+## 💻 Evidencia Técnica: Código M (Power Query)
+
+### Script M — `dim_clientes`
+```powerquery
+let
+    // 1. Carga de origen y selección de columnas del cliente
+    Origen = ventas_raw,
+    ColumnasSeleccionadas = Table.SelectColumns(Origen, {"id_cliente", "nombre_cliente", "correo", "telefono", "ciudad", "pais"}),
+    
+    // 2. Tipificación estricta
+    TipoCambiado = Table.TransformColumnTypes(ColumnasSeleccionadas, {
+        {"id_cliente", type text},
+        {"nombre_cliente", type text},
+        {"correo", type text},
+        {"telefono", type text},
+        {"ciudad", type text},
+        {"pais", type text}
+    }),
+    
+    // 3. Clave primaria única (eliminación de duplicados)
+    DuplicadosQuitados = Table.Distinct(TipoCambiado, {"id_cliente"}),
+    
+    // 4. Imputación de nulos
+    NulosReemplazados = Table.ReplaceValue(DuplicadosQuitados, null, "No Especificado", Replacer.ReplaceValue, {"ciudad", "pais", "telefono"})
+in
+    NulosReemplazados
+```
+
+### Script M — `fact_ventas`
+```powerquery
+let
+    // 1. Carga de origen y remoción de atributos redundantes del cliente
+    Origen = ventas_raw,
+    ColumnasSeleccionadas = Table.SelectColumns(Origen, {"id_transaccion", "fecha_venta", "id_cliente", "id_producto", "cantidad", "monto_total"}),
+    
+    // 2. Tipificación
+    TipoCambiado = Table.TransformColumnTypes(ColumnasSeleccionadas, {
+        {"id_transaccion", type text},
+        {"fecha_venta", type date},
+        {"id_cliente", type text},
+        {"id_producto", type text},
+        {"cantidad", Int64.Type},
+        {"monto_total", type number}
+    }),
+    
+    // 3. Limpieza de transacciones duplicadas y métricas nulas
+    DuplicadosQuitados = Table.Distinct(TipoCambiado, {"id_transaccion"}),
+    FilasSinNulos = Table.SelectRows(DuplicadosQuitados, each [monto_total] <> null and [cantidad] <> null)
+in
+    FilasSinNulos
+```
 
 ---
 
-##  3. Justificación Técnica de Tipos de Datos
+## 🖼️ Evidencia de Ejecución en Power BI Desktop
 
-| Columna | Tipo Asignado | ¿Por qué se eligió este tipo? (Justificación) |
-| :--- | :--- | :--- |
-| `id_cliente`<br>`id_transaccion`<br>`id_producto` | **Texto (Text)** | Son identificadores y claves de relación, no representan cantidades operables. Tipificarlos como texto evita que Power BI intente sumarlos o promediarlos por error y conserva ceros a la izquierda. |
-| `fecha_venta` | **Fecha (Date)** | Permite que Power BI cree jerarquías temporales automáticas (Año, Mes, Trimestre), conecte con tablas calendario y habilite fórmulas DAX de Inteligencia de Tiempo (`SAMEPERIODLASTYEAR`, `YTD`). |
-| `monto_total`<br>`precio_unitario` | **Número Decimal Fijo / Decimal** | Garantiza precisión en cálculos monetarios y evita errores de redondeo en sumatorias financieras y métricas de margen. |
-| `cantidad` | **Número Entero (Whole Number)** | Representa unidades discretas e indivisibles de producto vendido. |
-| `nombre_cliente`<br>`ciudad`<br>`pais` | **Texto (Text)** | Atributos cualitativos usados para agrupar, filtrar y crear segmentadores demográficos. |
+### 1. Pasos Aplicados en Power Query
+![Pasos Aplicados](screenshots/01_power_query_pasos.png)
 
----
-
-##  4. Tratamiento de Valores Nulos y Duplicados
-
-### A. Filas Duplicadas
-* **Criterio aplicado:** Se aplicó la acción **"Quitar duplicados"** evaluando el identificador único de la transacción (`id_transaccion`).
-* **Justificación de negocio:** Mantener ventas duplicadas inflaría artificialmente la facturación total y la cantidad real de pedidos de la empresa.
-
-### B. Valores Nulos (`null`)
-Se aplicaron dos tratamientos según la naturaleza de la columna:
-1. **Métricas cuantitativas (`monto_total`, `cantidad`):** Se eliminaron las filas con valores nulos que no pudieron ser imputadas, ya que una venta sin importe ni cantidad distorsiona promedios (`AVERAGE`) y totales (`SUM`).
-2. **Columnas descriptivas (`ciudad`, `telefono`):** Se utilizó la opción *Reemplazar los valores* para convertir los nulos en `"No Especificado"`. Esto permite que los filtros y segmentadores visuales sigan funcionando sin mostrar opciones en blanco.
-
----
-
-##  5. Criterio de Normalización: Separación de Tablas
-
-Para evitar la redundancia y optimizar el rendimiento de Power BI (motor VertiPaq), el dataset plano original se dividió en dos entidades bajo el estándar de **Esquema en Estrella**:
+### 2. Modelo Relacional en Estrella (Star Schema)
+![Modelo Relacional](screenshots/02_modelo_relacional.png)
