@@ -1,6 +1,6 @@
 ---
 
-## 💻 Evidencia Técnica: Código M (Power Query)
+##  Evidencia Técnica: Código M (Power Query)
 
 ### Script M — `dim_clientes`
 ```powerquery
@@ -54,7 +54,7 @@ in
 
 ---
 
-## 🖼️ Evidencia de Ejecución en Power BI Desktop
+##  Evidencia de Ejecución en Power BI Desktop
 
 ### 1. Pasos Aplicados en Power Query
 ![Pasos Aplicados](screenshots/01_power_query_pasos.png)
