@@ -1,63 +1,33 @@
----
+#  Práctica: Lenguaje M y Editor Avanzado en Power Query
 
-##  Evidencia Técnica: Código M (Power Query)
-
-### Script M — `dim_clientes`
-```powerquery
-let
-    // 1. Carga de origen y selección de columnas del cliente
-    Origen = ventas_raw,
-    ColumnasSeleccionadas = Table.SelectColumns(Origen, {"id_cliente", "nombre_cliente", "correo", "telefono", "ciudad", "pais"}),
-    
-    // 2. Tipificación estricta
-    TipoCambiado = Table.TransformColumnTypes(ColumnasSeleccionadas, {
-        {"id_cliente", type text},
-        {"nombre_cliente", type text},
-        {"correo", type text},
-        {"telefono", type text},
-        {"ciudad", type text},
-        {"pais", type text}
-    }),
-    
-    // 3. Clave primaria única (eliminación de duplicados)
-    DuplicadosQuitados = Table.Distinct(TipoCambiado, {"id_cliente"}),
-    
-    // 4. Imputación de nulos
-    NulosReemplazados = Table.ReplaceValue(DuplicadosQuitados, null, "No Especificado", Replacer.ReplaceValue, {"ciudad", "pais", "telefono"})
-in
-    NulosReemplazados
-```
-
-### Script M — `fact_ventas`
-```powerquery
-let
-    // 1. Carga de origen y remoción de atributos redundantes del cliente
-    Origen = ventas_raw,
-    ColumnasSeleccionadas = Table.SelectColumns(Origen, {"id_transaccion", "fecha_venta", "id_cliente", "id_producto", "cantidad", "monto_total"}),
-    
-    // 2. Tipificación
-    TipoCambiado = Table.TransformColumnTypes(ColumnasSeleccionadas, {
-        {"id_transaccion", type text},
-        {"fecha_venta", type date},
-        {"id_cliente", type text},
-        {"id_producto", type text},
-        {"cantidad", Int64.Type},
-        {"monto_total", type number}
-    }),
-    
-    // 3. Limpieza de transacciones duplicadas y métricas nulas
-    DuplicadosQuitados = Table.Distinct(TipoCambiado, {"id_transaccion"}),
-    FilasSinNulos = Table.SelectRows(DuplicadosQuitados, each [monto_total] <> null and [cantidad] <> null)
-in
-    FilasSinNulos
-```
+> **Repositorio de Práctica:** Extracción, manipulación manual en Lenguaje M y documentación analítica.  
+> **Herramienta:** Power BI Desktop / Editor Avanzado de Power Query  
+> **Dataset Utilizado:** *Superstore Sales and Inventory Dataset* (o dataset equivalente de comercio minorista).  
+> **Fuente / URL:** [Kaggle - Superstore Sales Dataset](https://www.kaggle.com/datasets) *(Reemplazar con el link exacto del dataset que descargues)*
 
 ---
 
-##  Evidencia de Ejecución en Power BI Desktop
+##  1. Selección y Justificación del Dataset
 
-### 1. Pasos Aplicados en Power Query
-![Pasos Aplicados](screenshots/01_power_query_pasos.png)
+* **Origen:** Repositorio público abierto en formato CSV.
+* **Cumplimiento de requisitos técnicos:**
+  * Cuenta con más de 10 columnas con tipos de datos variados: identificadores textuales (`Order_ID`, `Customer_ID`), fechas (`Order_Date`, `Ship_Date`), valores categóricos (`Region`, `Category`) y métricas numéricas (`Sales`, `Quantity`, `Profit`).
+  * Presenta filas con valores nulos en dimensiones de envío y columnas con nomenclatura técnica en mayúsculas/guiones bajos.
+* **Justificación analítica:** Simula fielmente un caso real de extracción desde un ERP/CRM desordenado, requiriendo tipificación manual, filtros de depuración y normalización de nombres para habilitar el análisis de ventas.
+
+---
+
+##  2. Código M Final (Editor Avanzado)
+
+A continuación se presenta el script M completo obtenido desde el **Editor Avanzado**, incluyendo el paso modificado manualmente (`#"MiTransformacionManual"`), la actualización de su referencia en el paso subsiguiente y los comentarios explicativos:
+
+```powerquery
+let
+    // 1. Carga del archivo fuente CSV con delimitador por coma y codificación UTF-8
+    Origen = Csv.Document(File.Contents("C:\Data\raw_sales_dataset.csv"), [Delimiter=",", Columns=8, Encoding=65001, QuoteStyle=QuoteStyle.None]),
+    
+    // 2. Promoción de la primera fila como encabezados de columna
+    #"Encabezados promovidos" = Table.PromoteHeaders(Origen, [PromoteAllScalars=true]),
 
 ### 2. Modelo Relacional en Estrella (Star Schema)
 ![Modelo Relacional](screenshots/02_modelo_relacional.png)
